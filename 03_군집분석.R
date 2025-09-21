@@ -61,8 +61,8 @@ head(final_df)
 #───────────────────────────────────────────────────────────────────────────────
 #[군집분석]
 cluster_data <- final_df %>%
-  ungroup() %>%
-  select(-년도, -노선)  # 숫자형 컬럼만 남김
+  ungroup() %>%                       # 그룹화 해제
+  select(-년도, -노선)
 
 cluster_data_scaled <- scale(cluster_data)
 
@@ -90,3 +90,5 @@ cluster_summary <- aggregate(cluster_data,
                              by = list(cluster = k_result$cluster), 
                              FUN = mean)
 print(cluster_summary)
+
+
