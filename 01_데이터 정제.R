@@ -1,4 +1,4 @@
-library(dplyr) ; library(stringr)
+library(dplyr) ; library(stringr) ; library(tidyr)
 
 getwd()
 #───────────────────────────────────────────────────────────────────────────────
@@ -79,6 +79,10 @@ Highway_Traffic_Management_System_all <- bind_rows(
 )
 
 names(Highway_Traffic_Management_System_all) <- gsub("기준년도", "년도", names(Highway_Traffic_Management_System_all))
+Highway_Traffic_Management_System_all <- Highway_Traffic_Management_System_all %>%
+  select(-구간) %>%
+  mutate(노선 = str_replace_all(노선, " ", ""))
+  
 head(Highway_Traffic_Management_System_all)
 
 #───────────────────────────────────────────────────────────────────────────────
@@ -109,4 +113,5 @@ Drowsy_Driving <- read.csv("./데이터/독립변수_한국도로공사_졸음�
 Drowsy_Driving <- Drowsy_Driving %>%
   mutate(사고연도 = str_replace(사고연도, "년", ""))
 names(Drowsy_Driving) <- gsub("사고연도", "년도", names(Drowsy_Driving))
+names(Drowsy_Driving) <- gsub("노선명", "노선", names(Drowsy_Driving))
 head(Drowsy_Driving)
