@@ -1,4 +1,4 @@
-library(dplyr) ; library(stringr) ; library(tidyr)
+library(dplyr) ; library(stringr) ; library(tidyr) ; library(factoextra)
 
 getwd()
 #───────────────────────────────────────────────────────────────────────────────
