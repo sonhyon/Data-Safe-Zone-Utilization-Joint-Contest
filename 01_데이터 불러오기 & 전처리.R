@@ -1,75 +1,74 @@
-# 필요한 패키지
-library(dplyr) ; library(rpart) ; library(rpart.plot) ; library(purrr)
+library(dplyr) ; library(stringr) ; library(tidyr) ; library(factoextra) ; library(tidyr) ; library(tidyr)
 
-#[분류분석 데이터 불러오기]
+getwd()
+#───────────────────────────────────────────────────────────────────────────────
+#*[노선별 교통사고_2018]
+Traffic_Accident <- read.csv("./데이터/군집분석_도로교통공단_고속도로 노선별 교통사고수_2018.csv", fileEncoding = "CP949")
 
-#종속변수
-load("./r_data/Traffic_Accident.rdata")
+Traffic_Accident <- Traffic_Accident %>%
+  rename(노선명 = 노선)
+Traffic_Accident$노선명 <- gsub(" ", "", Traffic_Accident$노선명)
+head(Traffic_Accident)
 
-#독립변수
-structure <- read.csv("./데이터/분류분석_고속도로 구조물 현황(2024년).csv", fileEncoding = "CP949") #구조물_2024
-load("./r_data/cause_of_traffic_accident_2022.rdata")
-load("./r_data/traffic_wide.rdata")
-Average_yearly_Traffic <- read.csv("./데이터/분류분석_한국도로공사_연평균일교통량_(2019~2024).csv", fileEncoding = "CP949") #연평균 교통량
-load("./r_data/drowsy_driving_2022.rdata")
+save(Traffic_Accident, file = "./r_data/Traffic_Accident.rdata")
 
 #───────────────────────────────────────────────────────────────────────────────
-#[데이터 전처리]
-rest_area_cnt <- rest_area %>%
-  group_by(노선) %>%
-  summarise(졸음쉼터수 = n()) %>%
-  rename(노선명 = 노선)
-head(rest_area_cnt)
+#*[노선별 교통량_2005~2024]
+traffic_volume <- read.csv("./데이터/군집분석_한국도로공사_노선별 교통량_(2005~2024).csv", fileEncoding = "CP949")
+head(traffic_volume)
 
-structure <- structure %>%
-  rename(노선명 = 노선)
+traffic_volume_2018 <- traffic_volume %>%
+  select(구분, 차종, X2018년) %>%
+  group_by(구분) %>%
+  summarise(total_volume = sum(X2018년)) %>%
+  filter(total_volume != 0) %>%
+  rename(노선명 = 구분)
 
-head(Traffic_Accident) #교통사고_2018
+traffic_volume_2018$노선명 <- gsub(" ", "", traffic_volume_2018$노선명)
+head(traffic_volume_2018)
 
-head(structure) #구조물_2024
-head(cause_of_traffic_accident_2022) #교통사고 원인_2022
-head(traffic_wide) #교통량_2018
-head(rest_area_cnt) #졸음쉼터
-head(drowsy_driving_2022) #졸음운전_2022~2024
+traffic_wide <- traffic_volume %>%
+  select(구분, 차종, X2018년) %>%
+  pivot_wider(
+    names_from = 차종,    # 열 이름으로 사용할 변수
+    values_from = X2018년 # 셀에 들어갈 값
+  ) %>%
+  rename(노선명 = 구분)
 
-df <- Traffic_Accident %>%
-  full_join(structure, by = "노선명") %>%
-  full_join(cause_of_traffic_accident_2022, by = "노선명") %>%
-  full_join(traffic_wide, by = "노선명") %>%
-  full_join(rest_area_cnt, by = "노선명") %>%
-  full_join(drowsy_driving_2022, by = "노선명")
-head(df)
+save(traffic_wide, file = "./r_data/traffic_wide.rdata")
+save(traffic_volume_2018, file = "./r_data/traffic_volume_2018.rdata")
+#───────────────────────────────────────────────────────────────────────────────
+#*[노선별 교통사고 원인_2022~2024]
+cause_of_traffic_accident <- read.csv("./데이터/군집분석_한국도로공사_고속도로 교통사고 원인_(2022~2024).csv", fileEncoding = "CP949")
+head(cause_of_traffic_accident)
 
-df_sel <- df %>%
-  mutate(전체사고수 = 사고건수 + 사망자수 + 부상자수) %>%
-  select(전체사고수, 소형차, 중형차, 대형차, 졸음운전사고수,주시태만, 졸음쉼터수)
-print(df_sel)
+cause_of_traffic_accident_2022 <- cause_of_traffic_accident %>%
+  filter(원인 != '기타', 사고년도 == '2022년') %>%
+  group_by(노선명, 원인) %>%
+  summarise(cnt = n(), .groups = "drop") %>%
+  pivot_wider(
+    names_from = 원인,
+    values_from = cnt,
+    values_fill = list(cnt = 0)   # NA 대신 0으로 채움
+  )
 
-df_clean <- df_sel[rowSums(df_sel == 0) == 0, ]
-df_clean <- na.omit(df_clean)
-print(df_clean)
+cause_of_traffic_accident_2022$노선명 <- gsub(" ", "", cause_of_traffic_accident_2022$노선명)
+head(cause_of_traffic_accident_2022)
+
+save(cause_of_traffic_accident_2022, file = "./r_data/cause_of_traffic_accident_2022.rdata")
 
 #───────────────────────────────────────────────────────────────────────────────
+#*[노선별 졸음운전_2022~2024]
+drowsy_driving <- read.csv("./데이터/군집분석_한국도로공사_졸음운전 사고통계_(2022~2024).csv", fileEncoding = "CP949")
+head(drowsy_driving)
 
+drowsy_driving_2022 <- drowsy_driving %>%
+  filter(사고연도 == '2022년') %>%
+  group_by(노선명) %>%
+  summarise(방향 = n()) %>%
+  rename(졸음운전사고수 = 방향)
 
-library(rpart)
-library(rpart.plot)
+drowsy_driving_2022$노선명 <- gsub(" ", "", drowsy_driving_2022$노선명)
+head(drowsy_driving_2022)
 
-# 로그 변환 (0일 경우 문제 없도록 +1)
-df_clean_log <- df_clean
-df_clean_log$소형차 <- log(df_clean_log$소형차 + 1)
-df_clean_log$중형차 <- log(df_clean_log$중형차 + 1)
-df_clean_log$대형차 <- log(df_clean_log$대형차 + 1)
-df_clean_log$졸음운전사고수 <- log(df_clean_log$졸음운전사고수 + 1)
-df_clean_log$주시태만 <- log(df_clean_log$주시태만 + 1)
-df_clean_log$졸음쉼터수 <- log(df_clean_log$졸음쉼터수 + 1)
-df_clean_log$전체사고수 <- log(df_clean_log$전체사고수 + 1)
-
-# 트리 모델 생성 (회귀)
-tree_model <- rpart(전체사고수 ~ 소형차 + 중형차 + 대형차 + 졸음운전사고수 + 주시태만 + 졸음쉼터수,
-                    data = df_clean_log,
-                    method = "anova",
-                    control = rpart.control(minsplit = 2, cp = 0.001)) # 분할 기준 완화
-
-# 트리 시각화
-rpart.plot(tree_model, type = 3, extra = 101, fallen.leaves = TRUE)
+save(drowsy_driving_2022, file = "./r_data/drowsy_driving_2022.rdata")
